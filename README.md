@@ -209,12 +209,12 @@ DATA_ROOT/
 
 ## 📜 License
 
-Add your chosen license in `LICENSE`.
+University of Pretoria copyright policy applies.
 
 ---
 
 ## 🙋 Support
 
 * Open a GitHub Issue for bugs or feature requests.
-* Want a generated scaffold (empty modules + starter notebooks) for **PyTorch** with **TensorBoard**/**wandb**? Ask and specify your preference.
+* Want a generated scaffold (empty modules + starter notebooks) for **PyTorch** with **TensorBoard**/**wandb**? Let us know what you think
 
