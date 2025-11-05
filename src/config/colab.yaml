@@ -1,5 +1,5 @@
 data:
-  root: ./data
+  root: /content/data
   scene_list: [sample_plant_001]
   use_depth: false
 grid:
@@ -22,4 +22,4 @@ train:
   lr: 2.0e-4
   amp: true
 paths:
-  out_root: ./outputs
+  out_root: /content/outputs
