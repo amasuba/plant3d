@@ -100,7 +100,7 @@ plant3d/
 1. In a Kaggle Notebook:
 
    ```bash
-   !git clone https://github.com/<you>/plant3d.git
+   !git clone https://github.com/amasuba/plant3d.git
    %cd plant3d
    !pip -q install -r requirements.txt
    ```
@@ -111,7 +111,7 @@ plant3d/
 ## 🔧 Installation (local)
 
 ```bash
-git clone https://github.com/<you>/plant3d.git
+git clone https://github.com/amasuba/plant3d.git
 cd plant3d
 python -m venv .venv && source .venv/bin/activate   # (Windows: .venv\Scripts\activate)
 pip install -r requirements.txt
