@@ -2,6 +2,9 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from typing import Any, Dict, Optional
+
+import yaml
 
 here = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(here, "..")))
@@ -9,19 +12,74 @@ sys.path.insert(0, os.path.abspath(os.path.join(here, "..")))
 from src.pipeline import run_pipeline
 
 
+DEFAULTS: Dict[str, Any] = {
+    "data_folder": "./dataset/plant_data",
+    "plant_id": 1,
+    "output_root": "./outputs",
+    "device": "cpu",
+    "epochs": 0,
+    "baseline": 0.40,
+    "render_size": 256,
+    "refine_epochs": 1,
+    "pretrained": True,
+    "freeze_dino": True,
+}
+
+
+def _load_preset_map() -> Dict[str, Dict[str, Any]]:
+    cfg_path = os.path.abspath(os.path.join(here, "..", "src", "config", "presets.yaml"))
+    with open(cfg_path, "r", encoding="utf-8") as fh:
+        data = yaml.safe_load(fh) or {}
+    presets = data.get("presets", {})
+    if not isinstance(presets, dict):
+        raise ValueError("Invalid presets.yaml: expected top-level 'presets' mapping")
+    return presets
+
+
+def _resolve_args(args: argparse.Namespace) -> argparse.Namespace:
+    values: Dict[str, Any] = dict(DEFAULTS)
+    presets = _load_preset_map()
+
+    if args.preset is not None:
+        if args.preset not in presets:
+            raise ValueError(
+                f"Unknown preset '{args.preset}'. Available: {', '.join(sorted(presets.keys()))}"
+            )
+        values.update(presets[args.preset])
+
+    # Explicit CLI values override preset values.
+    for key in values.keys():
+        if getattr(args, key, None) is not None:
+            values[key] = getattr(args, key)
+
+    for key, value in values.items():
+        setattr(args, key, value)
+    return args
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the Plant3D end-to-end pipeline on a flat plant dataset.")
-    parser.add_argument("--data-folder", type=str, default="./dataset/plant_data", help="Path to flat dataset folder.")
-    parser.add_argument("--plant-id", type=int, default=1, help="Plant ID to load from the dataset.")
-    parser.add_argument("--output-root", type=str, default="./outputs", help="Root directory for generated stage artifacts.")
-    parser.add_argument("--device", type=str, default="cpu", help="Device to run on (cpu or cuda).")
-    parser.add_argument("--epochs", type=int, default=0, help="Number of volumetric training epochs to run. Use 0 to skip training.")
-    parser.add_argument("--baseline", type=float, default=0.40, help="Stereo baseline in meters for flat dataset camera rig.")
-    parser.add_argument("--render-size", type=int, default=256, help="Rendered preview image side length.")
-    parser.add_argument("--refine-epochs", type=int, default=1, help="Number of geometry refinement epochs.")
-    parser.add_argument("--no-pretrained", dest="pretrained", action="store_false", help="Disable pretrained DINO weights.")
-    parser.add_argument("--no-freeze", dest="freeze_dino", action="store_false", help="Do not freeze DINO backbone weights.")
-    return parser.parse_args()
+    parser.add_argument("--preset", type=str, default=None, help="Preset from src/config/presets.yaml (e.g., fast, research).")
+    parser.add_argument("--data-folder", type=str, default=None, help="Path to flat dataset folder.")
+    parser.add_argument("--plant-id", type=int, default=None, help="Plant ID to load from the dataset.")
+    parser.add_argument("--output-root", type=str, default=None, help="Root directory for generated stage artifacts.")
+    parser.add_argument("--device", type=str, default=None, help="Device to run on (cpu or cuda).")
+    parser.add_argument("--epochs", type=int, default=None, help="Number of volumetric training epochs to run. Use 0 to skip training.")
+    parser.add_argument("--baseline", type=float, default=None, help="Stereo baseline in meters for flat dataset camera rig.")
+    parser.add_argument("--render-size", type=int, default=None, help="Rendered preview image side length.")
+    parser.add_argument("--refine-epochs", type=int, default=None, help="Number of geometry refinement epochs.")
+
+    pretrained_group = parser.add_mutually_exclusive_group()
+    pretrained_group.add_argument("--pretrained", dest="pretrained", action="store_true", help="Use pretrained DINO weights.")
+    pretrained_group.add_argument("--no-pretrained", dest="pretrained", action="store_false", help="Disable pretrained DINO weights.")
+    parser.set_defaults(pretrained=None)
+
+    freeze_group = parser.add_mutually_exclusive_group()
+    freeze_group.add_argument("--freeze", dest="freeze_dino", action="store_true", help="Freeze DINO backbone weights.")
+    freeze_group.add_argument("--no-freeze", dest="freeze_dino", action="store_false", help="Do not freeze DINO backbone weights.")
+    parser.set_defaults(freeze_dino=None)
+
+    return _resolve_args(parser.parse_args())
 
 
 def main() -> None:

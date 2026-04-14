@@ -52,11 +52,21 @@ python scripts/run_pipeline.py \
   --no-pretrained
 ```
 
+Use built-in experiment presets:
+
+```bash
+python scripts/run_pipeline.py --preset fast
+python scripts/run_pipeline.py --preset research
+```
+
 Useful flags:
+1. `--preset`: loads defaults from `src/config/presets.yaml`.
 1. `--epochs`: volumetric training epochs (0 skips).
 2. `--refine-epochs`: refinement epochs (0 skips).
 3. `--no-pretrained`: disables pretrained DINO weights.
 4. `--no-freeze`: allows DINO gradients.
+
+Preset values can be overridden by explicit CLI flags.
 
 ## Input Data Format (Implemented)
 

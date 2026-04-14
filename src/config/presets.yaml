@@ -1,0 +1,16 @@
+presets:
+  fast:
+    device: cpu
+    epochs: 0
+    refine_epochs: 1
+    render_size: 64
+    pretrained: false
+    freeze_dino: true
+
+  research:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
