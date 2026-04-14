@@ -30,10 +30,15 @@ def main() -> None:
 	elif sigma.ndim != 3:
 		raise ValueError(f"Expected 3D/4D/5D sigma volume, got shape {sigma.shape}")
 
-	mesh = marching_cubes_from_sigma(sigma, thresh=args.thresh)
+	sigma_min = float(np.min(sigma))
+	sigma_max = float(np.max(sigma))
+	thresh = args.thresh
+	if not (sigma_min < thresh < sigma_max):
+		thresh = 0.5 * (sigma_min + sigma_max)
+	mesh = marching_cubes_from_sigma(sigma, thresh=thresh)
 	os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
 	mesh.export(args.out)
-	print(f"Exported mesh: {args.out}")
+	print(f"Exported mesh: {args.out} (threshold={thresh:.6f})")
 
 
 if __name__ == "__main__":

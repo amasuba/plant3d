@@ -1,7 +1,7 @@
 from __future__ import annotations
 import torch, torch.nn.functional as F
 
-def lift_features_to_grid(feat_map: torch.Tensor, grid_res=(64,64,64)):
+def lift_features_to_grid(feat_map: torch.Tensor, grid_res=(32,32,32)):
     B,C,h,w = feat_map.shape
     D,H,W = grid_res
     f2d = F.interpolate(feat_map, size=(H,W), mode="bilinear", align_corners=False)

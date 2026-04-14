@@ -1,220 +1,106 @@
-# Dual-Transformer Image→3D Plants
+# Plant3D: Executable Architecture (April 2026)
 
-Reconstruct botanically faithful **3D plant geometry** from multi-view RGB (±Depth). The system couples a **DINO ViT** backbone, a **Volumetric Transformer** for 3D reasoning, **Geometry-Grounded Refinement**, and a **Differentiable Renderer**. Each stage produces **viewable artifacts** (images, videos, meshes) for quick validation in **Google Colab** or **Kaggle**.
+This README reflects the architecture that currently runs in code.
 
-> **Highlights**
->
-> * Self-supervised DINO features → robust view-invariant tokens
-> * 2D→3D multi-view **lifting** into a (sparse) voxel grid
-> * **Volumetric Transformer** with windowed 3D attention + ray-slice attention
-> * **Refinement** via cross-attention (2D↔3D) + differential-geometry & botanical priors
-> * End-to-end **rendering supervision** (no 3D GT required)
+The active pipeline combines:
+1. DINO feature extraction from multi-view RGB images.
+2. Volumetric transformer prediction of density/color fields.
+3. Optional refinement with 2D-3D cross-grounding and geometry smoothness prior.
+4. Differentiable rendering-based supervision/evaluation.
+5. Mesh extraction with marching cubes.
 
----
+## Current System Flow
 
-## 📁 Repository Structure
-
-```
-plant3d/
-├─ notebooks/
-│  ├─ 00_quickstart_colab.ipynb
-│  ├─ 00_quickstart_kaggle.ipynb
-│  ├─ 10_capture_and_calibration.ipynb
-│  ├─ 20_dino_precompute_features.ipynb
-│  ├─ 30_lift_2d_to_3d_volume.ipynb
-│  ├─ 40_volumetric_transformer_train.ipynb
-│  ├─ 50_renderer_view_synthesis.ipynb
-│  ├─ 60_geometry_refinement_train.ipynb
-│  └─ 70_evaluation_and_visualization.ipynb
-├─ src/
-│  ├─ config/
-│  │  ├─ base.yaml
-│  │  ├─ colab.yaml
-│  │  └─ kaggle.yaml
-│  ├─ dataio/
-│  │  ├─ datasets.py          # MV dataset, masks, depth
-│  │  ├─ camera.py            # K/E structs, pose I/O, helpers
-│  │  └─ loaders.py           # dataloaders, caching
-│  ├─ features/
-│  │  ├─ dino_backbone.py     # DINO student/teacher wrappers
-│  │  └─ dino_utils.py        # multi-crop, EMA, centering
-│  ├─ geometry/
-│  │  ├─ lift.py              # 2D→3D projection, voxel agg
-│  │  ├─ grids.py             # dense/sparse octree grids
-│  │  └─ priors.py            # smoothness/curvature/connectivity
-│  ├─ models/
-│  │  ├─ volumetric_transformer/
-│  │  │  ├─ blocks.py         # windowed 3D attn, ray-slice attn
-│  │  │  ├─ xscale.py         # cross-scale fusion pyramid
-│  │  │  └─ heads.py          # σ (occupancy), c (color)
-│  │  ├─ refinement/
-│  │  │  ├─ cross_grounding.py # 2D↔3D cross-attention
-│  │  │  └─ losses.py          # geometry-aware losses
-│  │  └─ renderer/
-│  │     ├─ rays.py           # sampling, stratified along t
-│  │     └─ render.py         # α-compositing, color/depth/opacity
-│  ├─ train/
-│  │  ├─ trainer_vol.py       # train volumetric transformer
-│  │  ├─ trainer_refine.py    # train refinement + priors
-│  │  └─ optim.py             # schedulers, mixed precision, EMA
-│  ├─ eval/
-│  │  ├─ metrics_3d.py        # IoU, Chamfer-L2, F-score
-│  │  ├─ metrics_img.py       # PSNR, SSIM
-│  │  └─ mesh.py              # marching cubes, exports (PLY/OBJ)
-│  └─ viz/
-│     ├─ gallery.py           # grids, side-by-side, GIF/MP4
-│     └─ tensorboard.py
-├─ outputs/
-│  ├─ stage_10_capture/       # rectified images, K/E, masks
-│  ├─ stage_20_dino/          # feature maps (H/8×W/8×d)
-│  ├─ stage_30_volume/        # voxel features (npz), previews
-│  ├─ stage_40_vol_train/     # ckpts, TB logs, novel views
-│  ├─ stage_50_render/        # rendered novel views, depth
-│  ├─ stage_60_refine/        # refined volumes, meshes
-│  └─ stage_70_eval/          # metrics.csv, plots
-├─ scripts/
-│  ├─ prepare_colab.sh
-│  ├─ prepare_kaggle.sh
-│  ├─ export_mesh.py
-│  └─ demo_render.py
-├─ requirements.txt
-├─ pyproject.toml             # or setup.cfg / setup.py
-├─ README.md                  # (this file)
-└─ LICENSE
-
+```text
+Flat RGB dataset
+  -> intrinsics estimate + synthetic camera poses
+  -> DINO features (stage_20_dino)
+  -> lift 2D features to 3D grid
+  -> volumetric transformer (sigma, color)
+  -> optional volumetric training (stage_40_vol_train)
+  -> optional refinement training (stage_60_refine)
+  -> render previews (stage_50_render)
+  -> eval metrics.csv + report.txt (stage_70_eval)
+  -> mesh export .ply (stage_60_refine)
 ```
 
----
+Primary runtime entrypoint:
+1. `scripts/run_pipeline.py`
+2. `src/pipeline.py`
 
-## 🚀 Quickstart
-
-### Option A — Google Colab
-
-1. Open `notebooks/00_quickstart_colab.ipynb`.
-2. Run the setup cell (installs `requirements.txt`, optional Drive mount).
-3. Set `DATA_ROOT` and `RUN_NAME` in the config cell.
-4. Execute stages sequentially or jump to the desired notebook.
-
-### Option B — Kaggle
-
-1. In a Kaggle Notebook:
-
-   ```bash
-   !git clone https://github.com/amasuba/plant3d.git
-   %cd plant3d
-   !pip -q install -r requirements.txt
-   ```
-2. Open `notebooks/00_quickstart_kaggle.ipynb`, set `DATA_ROOT=/kaggle/input/<dataset>`.
-
----
-
-## 🔧 Installation (local)
+## Install
 
 ```bash
 git clone https://github.com/amasuba/plant3d.git
 cd plant3d
-python -m venv .venv && source .venv/bin/activate   # (Windows: .venv\Scripts\activate)
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
----
+## Quickstart
 
-## ⚙️ Configuration
+Run the full executable path with light defaults:
 
-Edit one of:
-
-* `src/config/base.yaml` – defaults
-* `src/config/colab.yaml` – paths & small GPU settings
-* `src/config/kaggle.yaml` – Kaggle paths
-
-**Example (`src/config/base.yaml`):**
-
-```yaml
-data:
-  root: /path/to/DATA_ROOT
-  scene_list: [sample_plant_001]
-grid:
-  type: sparse_octree
-  base_res: 64
-  max_res: 128
-dino:
-  pretrained: "facebook/dino-vitb16"
-  freeze: true
-train:
-  epochs: 50
-  batch_size: 1
-  lr: 2.0e-4
-renderer:
-  n_samples: 64
-loss:
-  lambda_sil: 1.0
-  lambda_depth: 0.2
-  lambda_geom: 0.5
-  lambda_dino: 0.1
+```bash
+python scripts/run_pipeline.py \
+  --data-folder ./dataset/plant_data \
+  --epochs 0 \
+  --refine-epochs 1 \
+  --device cpu \
+  --render-size 64 \
+  --no-pretrained
 ```
 
----
+Useful flags:
+1. `--epochs`: volumetric training epochs (0 skips).
+2. `--refine-epochs`: refinement epochs (0 skips).
+3. `--no-pretrained`: disables pretrained DINO weights.
+4. `--no-freeze`: allows DINO gradients.
 
-## 🧱 Stages & Outputs (what you’ll see)
+## Input Data Format (Implemented)
 
-1. **Capture & Calibration** → rectified images, verified **K/E**, QC mosaics
-2. **DINO Features** → dense maps, attention visualizations
-3. **2D→3D Lift** → (sparse) voxel feature volumes, slice previews
-4. **Volumetric Transformer** → occupancy/color fields, novel-view renders
-5. **Renderer** → predicted color/depth/opacity, loss curves
-6. **Refinement** → improved thin structures, **meshes (PLY/OBJ)**
-7. **Evaluation** → IoU, Chamfer-L2, F-score, PSNR/SSIM, CSV reports
+The active runner uses `FlatPlantDataset` with flat filenames like:
+1. `0_degrees_RGB_plant_1.jpg`
+2. `90_degrees_depth_plant_1.npy`
+3. Optional camera tag: `..._cam_red_...` or `..._cam_green_...`
 
-Artifacts are saved under `outputs/stage_*/…` (PNGs, GIF/MP4 turntables, OBJ/PLY meshes, CSV metrics).
+Depth can be `.npy` or image files (`.png/.jpg/.jpeg`).
 
----
+## Output Artifacts
 
-## 🧪 Minimal Data Schema
+Generated under `outputs/`:
+1. `stage_20_dino`: per-view feature files (`view_XX.npz`).
+2. `stage_30_volume`: `sigma.npy`, `color.npy`.
+3. `stage_40_vol_train`: volumetric checkpoints and loss log (if enabled).
+4. `stage_50_render`: rendered preview image and alpha accumulation map.
+5. `stage_60_refine`: refinement checkpoints (if enabled) and mesh.
+6. `stage_70_eval`: `metrics.csv` and `report.txt`.
 
-```
-DATA_ROOT/
-└─ sample_plant_001/
-   ├─ rgb/*.png
-   ├─ mask/*.png
-   ├─ depth/*.png           # optional
-   ├─ intrinsics.json       # {fx, fy, cx, cy}
-   └─ poses/*.json          # {R: 3x3, t: 3x1} per view (world→cam)
-```
+## Utility Scripts
 
----
+1. `scripts/export_mesh.py`: exports `.ply/.obj` from a saved sigma volume.
+2. `scripts/demo_render.py`: renders a preview image from saved sigma/color volumes.
 
-## 🏋️ Training Recipes
+## Implemented vs Planned
 
-* **Small GPU**: 64³ base grid, windowed 3D attention (N1=2), ray-slice (N2=1), AMP on.
-* **Medium**: 96³–128³ with sparse octree, gradient checkpointing.
-* **Refinement**: freeze σ head, train cross-attention + priors, then fine-tune end-to-end.
+Implemented in runtime path:
+1. DINO features.
+2. Volumetric transformer inference/training.
+3. Refinement model training.
+4. Render-space metrics: MSE and PSNR.
+5. Mesh extraction.
 
----
+Present in repository but not wired into the main `run_pipeline` path yet:
+1. Scene-folder calibration dataset path (`MultiViewPlantDataset`).
+2. Full 3D metrics pipeline (IoU/Chamfer/F-score end-to-end integration).
+3. Notebook-first capture/calibration outputs as required runtime inputs.
 
-## 🔌 Extending
+## Notes on Diagram Alignment
 
-* Swap DINO for other ViTs in `src/features/`.
-* Replace voxel grid with tri-plane/hybrid (edit `geometry/grids.py`).
-* Add depth sensors: enable `loss.lambda_depth` and `data.depth=true`.
+`sys_diagram.pdf` is currently conceptual. The executable architecture is the flow documented above and implemented in `src/pipeline.py`.
 
----
-
-## 📊 Evaluation
-
-* 3D: **IoU**, **Chamfer-L2**, **F-score**
-* Rendering: **PSNR/SSIM**
-* Mesh export: `scripts/export_mesh.py` → PLY/OBJ (Meshlab/Blender ready)
-
----
-
-## 📜 License
+## License
 
 University of Pretoria copyright policy applies.
-
----
-
-## 🙋 Support
-
-* Open a GitHub Issue for bugs or feature requests.
-* Want a generated scaffold (empty modules + starter notebooks) for **PyTorch** with **TensorBoard**/**wandb**? Let us know what you think
 

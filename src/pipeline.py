@@ -143,11 +143,23 @@ def render_volume_tensors(
     pts_flat = pts_norm.reshape(1, -1, 3)
     sigma_samples = sample_grid(sigma, pts_flat)
     color_samples = sample_grid(color, pts_flat)
+    sigma_samples = sigma_samples.view(1, 1, height * width, n_samples)
+    color_samples = color_samples.view(1, 3, height * width, n_samples)
     delta = float((far - near) / n_samples)
     alphas = 1.0 - torch.exp(-sigma_samples * delta)
-    rgb, acc = volume_render(sigma_samples, color_samples, alphas)
-    rgb = rgb.view(1, 3, height, width).clamp(0.0, 1.0)
-    acc = acc.view(1, 1, height, width).clamp(0.0, 1.0)
+    trans = torch.cumprod(
+        torch.cat(
+            [
+                torch.ones(1, 1, height * width, 1, device=device),
+                (1.0 - alphas + 1e-10),
+            ],
+            dim=-1,
+        ),
+        dim=-1,
+    )[..., :-1]
+    weights = alphas * trans
+    rgb = (color_samples * weights).sum(dim=-1).view(1, 3, height, width).clamp(0.0, 1.0)
+    acc = weights.sum(dim=-1).view(1, 1, height, width).clamp(0.0, 1.0)
     return rgb, acc
 
 
@@ -424,7 +436,12 @@ def export_volume_artifacts(
             np.save(os.path.join(stage50, "render_acc.npy"), acc)
 
         sigma_np = sigma[0, 0].cpu().numpy()
-        mesh = marching_cubes_from_sigma(sigma_np, thresh=0.5)
+        sigma_min = float(np.min(sigma_np))
+        sigma_max = float(np.max(sigma_np))
+        mesh_thresh = 0.5
+        if not (sigma_min < mesh_thresh < sigma_max):
+            mesh_thresh = 0.5 * (sigma_min + sigma_max)
+        mesh = marching_cubes_from_sigma(sigma_np, thresh=mesh_thresh)
         mesh_path = os.path.join(stage60, "plant_volume_mesh.ply")
         mesh.export(mesh_path)
         print(f"Exported mesh to {mesh_path}")
@@ -432,6 +449,8 @@ def export_volume_artifacts(
         with open(os.path.join(stage70, "report.txt"), "w", encoding="utf-8") as fh:
             fh.write("Exported volumetric artifacts from plant pipeline.\n")
             fh.write(f"sigma shape: {sigma_np.shape}\n")
+            fh.write(f"sigma min/max: {sigma_min:.6f}/{sigma_max:.6f}\n")
+            fh.write(f"mesh threshold: {mesh_thresh:.6f}\n")
             fh.write(f"render image: {os.path.join(stage50, 'render_01.png')}\n")
             fh.write(f"mesh: {mesh_path}\n")
             if metrics is not None:

@@ -23,9 +23,15 @@ class Windowed3DAttn(nn.Module):
         attn = (q @ k.transpose(-1,-2)) * self.scale
         attn = attn.softmax(dim=-1)
         out = attn @ v
-        out = rearrange(out, "b n m l h s ch -> b n m l s (h ch)")
+        out = rearrange(
+            out,
+            "b n m l h (wd wh ww) ch -> b n m l wd wh ww (h ch)",
+            wd=wd,
+            wh=wh,
+            ww=ww,
+        )
         out = self.proj(out)
-        out = rearrange(out, "b d h w (wd wh ww c) -> b (d wd) (h wh) (w ww) c", wd=wd, wh=wh, ww=ww)
+        out = rearrange(out, "b d h w wd wh ww c -> b (d wd) (h wh) (w ww) c")
         return out
 
 class MLP(nn.Module):

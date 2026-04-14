@@ -1,0 +1,9 @@
+Exported volumetric artifacts from plant pipeline.
+sigma shape: (32, 32, 32)
+sigma min/max: 0.667193/0.677532
+mesh threshold: 0.672362
+render image: /workspaces/plant3d/outputs/stage_50_render/render_01.png
+mesh: /workspaces/plant3d/outputs/stage_60_refine/plant_volume_mesh.ply
+mse_mean: 0.111128
+psnr_mean: 9.582
+occupancy_ratio: 1.000000

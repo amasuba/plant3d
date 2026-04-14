@@ -9,8 +9,12 @@ def sample_grid(tri_field, pts):
     return sampled.view(B, C, -1)
 def volume_render(sigma, color, alphas):
     B,_,K = sigma.shape
-    T = torch.cumprod(torch.cat([torch.ones(B,1, device=sigma.device), (1-alphas)[:,:-1]], dim=1), dim=1)
-    weights = (alphas * T)
+    a = alphas.squeeze(1)
+    T = torch.cumprod(
+        torch.cat([torch.ones(B, 1, device=sigma.device), (1.0 - a)[:, :-1]], dim=1),
+        dim=1,
+    )
+    weights = a * T
     rgb = (color * weights.unsqueeze(1)).sum(dim=-1)
     acc = weights.sum(dim=-1, keepdim=True)
     return rgb, acc
