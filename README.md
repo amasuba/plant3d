@@ -1,4 +1,4 @@
-# Dual-Transformer Image→3D for Fruit Plants
+# Dual-Transformer Image→3D Plants
 
 Reconstruct botanically faithful **3D plant geometry** from multi-view RGB (±Depth). The system couples a **DINO ViT** backbone, a **Volumetric Transformer** for 3D reasoning, **Geometry-Grounded Refinement**, and a **Differentiable Renderer**. Each stage produces **viewable artifacts** (images, videos, meshes) for quick validation in **Google Colab** or **Kaggle**.
 
