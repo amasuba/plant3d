@@ -1,4 +1,5 @@
 presets:
+  # ── Development / iteration ────────────────────────────────────────
   fast:
     device: cpu
     epochs: 0
@@ -7,9 +8,101 @@ presets:
     pretrained: false
     freeze_dino: true
 
+  # ── Quick GPU iteration (≈3 GB VRAM) ──────────────────────────────
+  fast_gpu:
+    device: cuda
+    epochs: 0
+    refine_epochs: 1
+    render_size: 128
+    pretrained: true
+    freeze_dino: true
+
+  # ── Full research run (≈8 GB VRAM) ────────────────────────────────
   research:
     device: cuda
     epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+
+  # ── Lighter GPU run (≈4 GB VRAM) ──────────────────────────────────
+  research_light:
+    device: cuda
+    epochs: 6
+    refine_epochs: 2
+    render_size: 128
+    pretrained: true
+    freeze_dino: true
+
+  # ── Ablation A1: pretrained DINO vs random init ───────────────────
+  # Hypothesis: pretrained ViT features improve reconstruction quality
+  ablation_pretrain_on:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+
+  ablation_pretrain_off:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: false
+    freeze_dino: true
+
+  # ── Ablation A2: frozen vs fine-tuned DINO ────────────────────────
+  # Hypothesis: freezing the backbone retains transfer quality;
+  #             unfreezing may improve domain-specific adaptation
+  ablation_freeze_on:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+
+  ablation_freeze_off:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 128
+    pretrained: true
+    freeze_dino: false
+
+  # ── Ablation A3: with vs without geometry refinement ──────────────
+  # Hypothesis: cross-grounding refinement improves geometry metrics
+  ablation_refine_on:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+
+  ablation_refine_off:
+    device: cuda
+    epochs: 12
+    refine_epochs: 0
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+
+  # ── Ablation A4: volumetric training depth ────────────────────────
+  # Hypothesis: more training epochs improve volumetric supervision
+  ablation_epochs_short:
+    device: cuda
+    epochs: 4
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+
+  ablation_epochs_long:
+    device: cuda
+    epochs: 24
     refine_epochs: 4
     render_size: 256
     pretrained: true

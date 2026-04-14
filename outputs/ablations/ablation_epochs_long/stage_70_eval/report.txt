@@ -1,0 +1,9 @@
+Exported volumetric artifacts from plant pipeline.
+sigma shape: (32, 32, 32)
+sigma min/max: 0.644894/0.654862
+mesh threshold: 0.649878
+render image: C:\Users\u25737806\plant3d\outputs\ablations\ablation_epochs_long\stage_50_render\render_01.png
+mesh: C:\Users\u25737806\plant3d\outputs\ablations\ablation_epochs_long\stage_60_refine\plant_volume_mesh.ply
+mse_mean: 0.099912
+psnr_mean: 10.034
+occupancy_ratio: 1.000000

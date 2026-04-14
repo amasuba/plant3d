@@ -68,6 +68,45 @@ Useful flags:
 
 Preset values can be overridden by explicit CLI flags.
 
+### Available Presets
+
+| Preset | Purpose | Device | Epochs | Refine | Render | VRAM |
+|---|---|---|---|---|---|---|
+| `fast` | Quick iteration / CI | cpu | 0 | 1 | 64 | — |
+| `research` | Full experiment | cuda | 12 | 4 | 256 | ≈8 GB |
+| `research_light` | Lighter GPU run | cuda | 6 | 2 | 128 | ≈4 GB |
+
+List all presets (including ablation):
+
+```bash
+python scripts/run_pipeline.py --list-presets
+```
+
+### Ablation Studies
+
+Four ablation axes are pre-configured:
+
+| ID | Hypothesis | Presets |
+|---|---|---|
+| A1 | Pretrained DINO features improve reconstruction | `ablation_pretrain_on` / `ablation_pretrain_off` |
+| A2 | Freezing the backbone retains transfer quality | `ablation_freeze_on` / `ablation_freeze_off` |
+| A3 | Cross-grounding refinement improves geometry | `ablation_refine_on` / `ablation_refine_off` |
+| A4 | More volumetric epochs improve supervision | `ablation_epochs_short` / `ablation_epochs_long` |
+
+Run all ablations with one command:
+
+```bash
+python scripts/run_ablations.py --data-folder ./dataset/plant_data
+```
+
+Or run a specific pair:
+
+```bash
+python scripts/run_ablations.py --presets ablation_pretrain_on ablation_pretrain_off
+```
+
+Results are collected into `outputs/ablations/ablation_summary.csv`.
+
 ## Input Data Format (Implemented)
 
 The active runner uses `FlatPlantDataset` with flat filenames like:

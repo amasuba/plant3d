@@ -60,6 +60,7 @@ def _resolve_args(args: argparse.Namespace) -> argparse.Namespace:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the Plant3D end-to-end pipeline on a flat plant dataset.")
     parser.add_argument("--preset", type=str, default=None, help="Preset from src/config/presets.yaml (e.g., fast, research).")
+    parser.add_argument("--list-presets", action="store_true", help="Print available presets and exit.")
     parser.add_argument("--data-folder", type=str, default=None, help="Path to flat dataset folder.")
     parser.add_argument("--plant-id", type=int, default=None, help="Plant ID to load from the dataset.")
     parser.add_argument("--output-root", type=str, default=None, help="Root directory for generated stage artifacts.")
@@ -79,7 +80,17 @@ def parse_args() -> argparse.Namespace:
     freeze_group.add_argument("--no-freeze", dest="freeze_dino", action="store_false", help="Do not freeze DINO backbone weights.")
     parser.set_defaults(freeze_dino=None)
 
-    return _resolve_args(parser.parse_args())
+    raw = parser.parse_args()
+
+    if raw.list_presets:
+        presets = _load_preset_map()
+        print("Available presets:\n")
+        for name, vals in sorted(presets.items()):
+            flags = ", ".join(f"{k}={v}" for k, v in vals.items())
+            print(f"  {name:28s} {flags}")
+        raise SystemExit(0)
+
+    return _resolve_args(raw)
 
 
 def main() -> None:
