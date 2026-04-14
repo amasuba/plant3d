@@ -18,6 +18,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--epochs", type=int, default=0, help="Number of volumetric training epochs to run. Use 0 to skip training.")
     parser.add_argument("--baseline", type=float, default=0.40, help="Stereo baseline in meters for flat dataset camera rig.")
     parser.add_argument("--render-size", type=int, default=256, help="Rendered preview image side length.")
+    parser.add_argument("--refine-epochs", type=int, default=1, help="Number of geometry refinement epochs.")
     parser.add_argument("--no-pretrained", dest="pretrained", action="store_false", help="Disable pretrained DINO weights.")
     parser.add_argument("--no-freeze", dest="freeze_dino", action="store_false", help="Do not freeze DINO backbone weights.")
     return parser.parse_args()
@@ -34,6 +35,7 @@ def main() -> None:
         epochs=args.epochs,
         baseline_m=args.baseline,
         render_size=render_size,
+        refine_epochs=args.refine_epochs,
         pretrained_dino=args.pretrained,
         freeze_dino=args.freeze_dino,
     )

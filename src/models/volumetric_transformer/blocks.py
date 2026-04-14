@@ -14,7 +14,7 @@ class Windowed3DAttn(nn.Module):
         B,D,H,W,C = x.shape
         wd,wh,ww = self.window
         assert D%wd==0 and H%wh==0 and W%ww==0
-        xw = rearrange(x, "b d h w c -> b (d wd) (h wh) (w ww) wd wh ww c", wd=wd, wh=wh, ww=ww)
+        xw = rearrange(x, "b (d wd) (h wh) (w ww) c -> b d h w wd wh ww c", wd=wd, wh=wh, ww=ww)
         qkv = self.qkv(xw).chunk(3, dim=-1)
         q,k,v = qkv
         q = rearrange(q, "b n m l wd wh ww (h ch) -> b n m l h (wd wh ww) ch", h=self.heads)
@@ -25,7 +25,7 @@ class Windowed3DAttn(nn.Module):
         out = attn @ v
         out = rearrange(out, "b n m l h s ch -> b n m l s (h ch)")
         out = self.proj(out)
-        out = rearrange(out, "b (d) (h) (w) (wd wh ww c) -> b d h w c", d=D//wd, h=H//wh, w=W//ww, wd=wd, wh=wh, ww=ww)
+        out = rearrange(out, "b d h w (wd wh ww c) -> b (d wd) (h wh) (w ww) c", wd=wd, wh=wh, ww=ww)
         return out
 
 class MLP(nn.Module):

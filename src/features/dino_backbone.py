@@ -20,7 +20,6 @@ class DINOBackbone(nn.Module):
             for p in self.parameters():
                 p.requires_grad = False
 
-    @torch.no_grad()
     def forward(self, x: torch.Tensor):
         feats = self.vit(x)
         return feats[-1]

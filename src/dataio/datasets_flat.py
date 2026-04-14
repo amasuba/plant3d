@@ -22,7 +22,7 @@ PAT = re.compile(
     r'(?P<angle>\d+)_degrees_(?P<mod>rgb|depth)'
     r'(?:_cam_(?P<cam>red|green))?'
     r'_plant_(?P<pid>\d+)'
-)
+, re.IGNORECASE)
 
 def yaw_matrix_deg(deg: float) -> np.ndarray:
     th = np.deg2rad(deg)
@@ -72,16 +72,16 @@ class FlatPlantDataset(Dataset):
             if not m: 
                 continue
             d = m.groupdict()
+            mod = d["mod"].lower()
+            cam = (d.get("cam") or "").lower() or None
             if d["pid"] != self.pid:
                 continue
             angle = int(d["angle"])
-            mod   = d["mod"]
-            cam   = d.get("cam")  # may be None
             stem  = (angle, cam)
             entry = by_key.setdefault(stem, {"angle": angle, "cam": cam, "rgb": None, "depth": None})
             if mod == "rgb" and p.lower().endswith((".jpg",".jpeg",".png")):
                 entry["rgb"] = p
-            elif mod == "depth" and p.lower().endswith(".npy"):
+            elif mod == "depth" and p.lower().endswith((".npy", ".png", ".jpg", ".jpeg")):
                 entry["depth"] = p
 
         # If cam tag missing, assign alternating files to red/green deterministically per angle
@@ -113,7 +113,10 @@ class FlatPlantDataset(Dataset):
         # Optional depth (.npy meters)
         depth = None
         if rec["depth"] is not None:
-            depth = np.load(rec["depth"]).astype(np.float32)  # HxW (meters)
+            if rec["depth"].lower().endswith(".npy"):
+                depth = np.load(rec["depth"]).astype(np.float32)  # HxW (meters)
+            else:
+                depth = np.array(Image.open(rec["depth"]).convert("L"), dtype=np.float32) / 255.0
 
         # Intrinsics per camera
         if rec["cam"] == "green":
