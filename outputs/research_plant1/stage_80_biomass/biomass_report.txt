@@ -1,0 +1,2 @@
+Stage 80 Biomass
+proxy_volume_m3: 0.02403467521071434

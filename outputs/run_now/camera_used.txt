@@ -1,0 +1,4 @@
+Camera : Kinect v2
+fx=365.8  fy=365.8  cx=256.3  cy=207.1
+depth range : 500-4500 mm
+grid        : 96^3

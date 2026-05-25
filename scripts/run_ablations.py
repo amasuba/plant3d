@@ -104,6 +104,9 @@ def main() -> None:
                 refine_epochs=cfg.get("refine_epochs", 0),
                 pretrained_dino=cfg.get("pretrained", True),
                 freeze_dino=cfg.get("freeze_dino", True),
+                lambda_consistency=cfg.get("lambda_consistency", 0.1),
+                lambda_depth=cfg.get("lambda_depth", 0.5),
+                use_ema_refine=cfg.get("use_ema_refine", True),
             )
             elapsed = time.time() - t0
             metrics = result.get("metrics", {})

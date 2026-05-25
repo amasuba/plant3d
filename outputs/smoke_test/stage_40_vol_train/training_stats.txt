@@ -1,0 +1,1 @@
+epoch_01: recon=0.110569 depth=0.000000 consist=0.000000

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 import argparse
 import os
 import sys
@@ -23,6 +23,10 @@ DEFAULTS: Dict[str, Any] = {
     "refine_epochs": 1,
     "pretrained": True,
     "freeze_dino": True,
+    "lambda_consistency": 0.1,
+    "use_ema_refine": True,
+    "biomass_labels_csv": None,
+    "biomass_calibration_epochs": 200,
 }
 
 
@@ -70,8 +74,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--render-size", type=int, default=None, help="Rendered preview image side length.")
     parser.add_argument("--refine-epochs", type=int, default=None, help="Number of geometry refinement epochs.")
 
+    parser.add_argument("--lambda-consistency", type=float, default=None, help="Weight for multi-view self-supervised consistency loss (0 to disable).")
+    parser.add_argument("--biomass-labels-csv", type=str, default=None, help="CSV with columns [plant_id, biomass_g] for BiomassHead calibration.")
+    parser.add_argument("--biomass-calibration-epochs", type=int, default=None, help="Fine-tuning epochs for BiomassHead.")
+
     pretrained_group = parser.add_mutually_exclusive_group()
+    parser.add_argument("--lambda-consistency", type=float, default=None, help="Weight for multi-view self-supervised consistency loss (0 to disable).")
+    parser.add_argument("--biomass-labels-csv", type=str, default=None, help="CSV with columns [plant_id, biomass_g] for BiomassHead calibration.")
+    parser.add_argument("--biomass-calibration-epochs", type=int, default=None, help="Fine-tuning epochs for BiomassHead.")
+
     pretrained_group.add_argument("--pretrained", dest="pretrained", action="store_true", help="Use pretrained DINO weights.")
+    parser.add_argument("--lambda-consistency", type=float, default=None, help="Weight for multi-view self-supervised consistency loss (0 to disable).")
+    parser.add_argument("--biomass-labels-csv", type=str, default=None, help="CSV with columns [plant_id, biomass_g] for BiomassHead calibration.")
+    parser.add_argument("--biomass-calibration-epochs", type=int, default=None, help="Fine-tuning epochs for BiomassHead.")
+
     pretrained_group.add_argument("--no-pretrained", dest="pretrained", action="store_false", help="Disable pretrained DINO weights.")
     parser.set_defaults(pretrained=None)
 
@@ -115,3 +131,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

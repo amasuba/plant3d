@@ -1,0 +1,14 @@
+=== Plant3D Report ===
+sigma shape: (32, 32, 32)
+sigma range: [0.5358,0.5424]
+mesh thresh: 0.5391
+mesh verts: 6016
+mesh faces: 11311
+
+--- Image metrics ---
+mse_mean: 0.101652
+psnr_mean: 9.954704
+occupancy_ratio: 1.000000
+
+--- Biomass ---
+proxy_volume_m3: 0.017685027793049812

@@ -5,8 +5,10 @@ class Heads(nn.Module):
     def __init__(self, in_dim=128):
         super().__init__()
         self.density = nn.Conv3d(in_dim, 1, 1)
-        self.color = nn.Conv3d(in_dim, 3, 1)
+        self.color   = nn.Conv3d(in_dim, 3, 1)
+        # Bias density toward near-zero at init: sigmoid(-5) ~ 0.007
+        nn.init.constant_(self.density.bias, -2.0)
     def forward(self, x):
         sigma = torch.sigmoid(self.density(x))
-        color = torch.tanh(self.color(x)) * 0.5 + 0.5
+        color = torch.sigmoid(self.color(x))
         return sigma, color

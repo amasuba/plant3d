@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe --version)",
+      "Bash(.venv/Scripts/python.exe -c \"import torch; print\\('torch', torch.__version__\\); import timm; print\\('timm', timm.__version__\\); import trimesh; print\\('trimesh', trimesh.__version__\\); import imageio; print\\('imageio', imageio.__version__\\); import moviepy; print\\('moviepy ok'\\)\")",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(python -c \"print\\(open\\('src/pipeline.py'\\).read\\(\\)[:200]\\)\")",
+      "Bash(python)",
+      "Bash(.venv/Scripts/python.exe scripts/write_pipeline.py)",
+      "Bash(.venv/Scripts/python.exe)",
+      "Bash(python -c \"import torch; print\\('CUDA:', torch.cuda.is_available\\(\\), '|', torch.cuda.get_device_name\\(0\\) if torch.cuda.is_available\\(\\) else 'CPU only'\\)\")",
+      "Bash(.venv/Scripts/python.exe scripts/depth_fusion.py --data-folder dataset/plant_data --grid 48 --output-dir outputs/test_fusion_script)",
+      "Bash(.venv/Scripts/python.exe scripts/depth_fusion.py --data-folder dataset/plant_data --grid 96 --output-dir outputs/kinect_v2_corrected)",
+      "Bash(.venv/Scripts/python.exe scripts/depth_fusion.py --list-cameras)"
+    ]
+  }
+}

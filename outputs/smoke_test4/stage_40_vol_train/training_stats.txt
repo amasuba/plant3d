@@ -1,0 +1,5 @@
+epoch_01: recon=0.181972 depth=0.000000 consist=0.000000
+epoch_02: recon=0.074072 depth=0.000000 consist=0.000000
+epoch_03: recon=0.066594 depth=0.000000 consist=0.000000
+epoch_04: recon=0.068282 depth=0.000000 consist=0.000000
+epoch_05: recon=0.068113 depth=0.000000 consist=0.000000

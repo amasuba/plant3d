@@ -107,3 +107,108 @@ presets:
     render_size: 256
     pretrained: true
     freeze_dino: true
+
+  # -- Biomass estimation (RQ3) -----------------------------------------
+  # Full reconstruction + label-free biomass proxy.
+  # Pass --biomass-labels-csv to calibrate BiomassHead on labelled samples.
+  biomass_proxy:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+    lambda_consistency: 0.1
+    use_ema_refine: true
+    biomass_calibration_epochs: 200
+
+  biomass_proxy_cpu:
+    device: cpu
+    epochs: 0
+    refine_epochs: 1
+    render_size: 64
+    pretrained: false
+    freeze_dino: true
+    lambda_consistency: 0.0
+    use_ema_refine: false
+    biomass_calibration_epochs: 50
+
+  # -- Ablation A5: multi-view consistency loss (RQ1) -------------------
+  # Hypothesis: self-supervised consistency loss improves 3D feature quality
+  ablation_consistency_on:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+    lambda_consistency: 0.1
+    use_ema_refine: true
+
+  ablation_consistency_off:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+    lambda_consistency: 0.0
+    use_ema_refine: false
+
+  # -- Ablation A6: depth-guided lifting vs uniform extrusion (RQ2) -----
+  # Hypothesis: RGB-D depth guidance improves geometry fidelity
+  # Run with a dataset that has .npy depth files present.
+  ablation_depth_on:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+    lambda_consistency: 0.1
+
+  ablation_depth_off:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+    lambda_consistency: 0.0
+
+  # -- H2 partial unfreeze: last 2 ViT-B blocks only (fits in 8 GB) ----------
+  ablation_freeze_partial:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+    lambda_consistency: 0.0
+    lambda_depth: 0.0
+    use_ema_refine: false
+    unfreeze_last_n: 2
+
+  ablation_freeze_full:
+    device: cuda
+    epochs: 12
+    refine_epochs: 4
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+    lambda_consistency: 0.0
+    lambda_depth: 0.0
+    use_ema_refine: false
+    unfreeze_last_n: 0
+
+  # -- H3 properly: refinement with enough epochs ----------------------------
+  ablation_refine_on_proper:
+    device: cuda
+    epochs: 8
+    refine_epochs: 12
+    render_size: 256
+    pretrained: true
+    freeze_dino: true
+    lambda_consistency: 0.05
+    lambda_depth: 0.0
+    use_ema_refine: true

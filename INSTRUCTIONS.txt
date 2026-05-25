@@ -1,0 +1,344 @@
+﻿================================================================================
+PLANT3D — HOW TO RUN THE PROJECT FROM SCRATCH
+Candidate: Aaron Masuba (25737806)
+================================================================================
+
+OVERVIEW
+--------
+The project has two reconstruction paths:
+
+  Path A  Depth Fusion  (fast, sensor-accurate geometry, recommended for MeshLab)
+  Path B  Photometric   (DINO + NeRF-style volumetric training, for ablations)
+
+Both produce PLY meshes and MP4 videos.  Run Path A first — it takes under
+2 minutes.  Path B (full research run) takes 20-40 minutes on an RTX 3060 Ti.
+
+
+PREREQUISITES
+-------------
+Hardware:
+  - GPU with >= 6 GB VRAM recommended (RTX 3060 Ti / 3080 / A100 etc.)
+  - CPU-only works but is ~10x slower (use --device cpu flags below)
+
+Software (already installed in .venv):
+  Python 3.10+, PyTorch 2.x, CUDA 12.x, timm, trimesh, imageio, moviepy,
+  scipy, scikit-image, open3d, matplotlib, tensorboard
+
+
+STEP 0 — ACTIVATE THE ENVIRONMENT
+-----------------------------------
+Windows PowerShell:
+  cd C:\Users╳7806\plant3d
+  .\.venv\Scripts\Activate.ps1
+
+Windows CMD:
+  cd C:\Users╳7806\plant3d
+  .venv\Scripts\activate.bat
+
+Linux / Mac:
+  cd plant3d
+  source .venv/bin/activate
+
+Verify:
+  python -c "import torch; print(torch.cuda.is_available())"
+  # Should print: True
+
+
+DATASET LAYOUT (already present)
+----------------------------------
+dataset/plant_data/
+  0_degrees_RGB_plant_1.jpg        <- colour image at 0 degrees (1920x1080)
+  0_degrees_depth_plant_1.npy      <- raw depth in millimetres (424x512, float32)
+  0_degrees_filtered_plant_1.npy   <- hole-filled depth in mm   (424x512, uint16)
+  90_degrees_RGB_plant_1.jpg
+  90_degrees_depth_plant_1.npy
+  ... (repeat for 180 and 270 degrees)
+
+If you capture your own plant, name files exactly like this pattern and place
+them in a folder, then pass --data-folder <your-folder> to any script below.
+
+
+================================================================================
+PATH A — DEPTH FUSION (fast, best geometry)
+================================================================================
+
+Step A1: Build the 3D voxel grid, mesh, and point cloud
+---------------------------------------------------------
+python scripts/depth_fusion.py \
+    --data-folder dataset/plant_data \
+    --plant-id 1 \
+    --grid 96 \
+    --near-mm 350 \
+    --far-mm 1900 \
+    --output-dir outputs/my_plant1
+
+This produces:
+  outputs/my_plant1/
+    plant_mesh_colored.ply   <- open in MeshLab
+    plant_pointcloud.ply     <- open in MeshLab
+    sigma.npy                <- volumetric occupancy (96^3)
+    color.npy                <- volumetric colour (96^3)
+
+MeshLab tips:
+  - File > Import Mesh > plant_mesh_colored.ply
+  - Render > Shading > Vertex
+  - View > Show Vertex Colour
+  - Filters > Smoothing > Laplacian Smooth (optional, 2-3 iters)
+
+
+Step A2: Post-process the mesh (smooth + clean)
+-----------------------------------------------
+python scripts/postprocess_mesh.py \
+    --input  outputs/my_plant1/plant_mesh_colored.ply \
+    --output outputs/my_plant1/plant_mesh_final.ply \
+    --smooth-iters 5 \
+    --min-component-ratio 0.01
+
+(Removes small floating fragments, applies Laplacian smoothing, fills holes)
+
+
+Step A3: Render the 360-degree orbit video
+------------------------------------------
+python scripts/render_video.py \
+    --sigma  outputs/my_plant1/sigma.npy \
+    --color  outputs/my_plant1/color.npy \
+    --output outputs/my_plant1/orbit_360.mp4 \
+    --frames 120 \
+    --size   512 \
+    --device cuda \
+    --multi-elevation
+
+This renders 3 passes (high, mid, low elevation) into one 12-second MP4.
+Remove --multi-elevation to render a single-elevation orbit instead.
+
+
+================================================================================
+PATH B — PHOTOMETRIC PIPELINE (full DINO + volumetric training)
+================================================================================
+
+Step B1: Quick sanity check (< 2 minutes, CPU, no pretrained weights)
+----------------------------------------------------------------------
+python scripts/run_pipeline.py \
+    --preset fast \
+    --data-folder dataset/plant_data
+
+Expected output in outputs/:
+  stage_20_dino/        DINO feature files
+  stage_40_vol_train/   volumetric checkpoints
+  stage_60_refine/      plant_mesh.ply (rough)
+  stage_70_eval/        metrics.csv + rendered images
+  stage_80_biomass/     biomass_report.txt
+
+
+Step B2: Full research run (GPU, pretrained DINO, best quality)
+---------------------------------------------------------------
+python scripts/run_pipeline.py \
+    --preset research \
+    --data-folder dataset/plant_data \
+    --output-root outputs/research_plant1 \
+    --device cuda
+
+This runs 12 volumetric epochs + 4 refinement epochs on a 256^2 render target.
+Expected time: ~25 minutes on RTX 3060 Ti.
+
+
+Step B3: Extended high-quality run (24 epochs, depth supervision)
+-----------------------------------------------------------------
+python scripts/run_pipeline.py \
+    --data-folder   dataset/plant_data \
+    --output-root   outputs/research_hq \
+    --device        cuda \
+    --epochs        24 \
+    --refine-epochs 6 \
+    --render-size   256 \
+    --pretrained \
+    --freeze \
+    --lambda-consistency 0.05 \
+    --biomass-labels-csv dataset/biomass_labels.csv
+
+Note: --biomass-labels-csv is optional.  If provided, the CSV must have:
+    plant_id,biomass_g
+    1,42.3
+    2,38.7
+
+
+Step B4: List all available presets
+------------------------------------
+python scripts/run_pipeline.py --list-presets
+
+Available presets include:
+  fast              CPU sanity check (epochs=0, random DINO)
+  fast_gpu          Quick GPU check
+  research          Full experiment (12 epochs, pretrained DINO, CUDA)
+  research_light    Lighter GPU run (6 epochs)
+  biomass_proxy     Full run + biomass stage
+  biomass_proxy_cpu Biomass proxy on CPU only
+
+
+================================================================================
+ABLATION STUDIES (test all 6 hypotheses)
+================================================================================
+
+Run all ablations at once (A1-A6):
+------------------------------------
+python scripts/run_ablations.py \
+    --data-folder dataset/plant_data \
+    --output-root outputs/ablations
+
+Results saved to: outputs/ablations/ablation_summary.csv
+
+Run specific pair only (e.g., H5 — consistency loss):
+------------------------------------------------------
+python scripts/run_ablations.py \
+    --presets ablation_consistency_on ablation_consistency_off \
+    --data-folder dataset/plant_data \
+    --output-root outputs/ablations
+
+
+Ablation map (6 hypotheses, 12 runs total):
+  A1  ablation_pretrain_on / off      H1: Pretrained DINO improves reconstruction
+  A2  ablation_freeze_on  / off       H2: Frozen backbone retains transfer quality
+  A3  ablation_refine_on  / off       H3: Cross-grounding refinement improves geometry
+  A4  ablation_epochs_long / short    H4: More epochs improve volumetric supervision
+  A5  ablation_consistency_on / off   H5: Multi-view consistency loss (RQ1)
+  A6  ablation_depth_on   / off       H6: Depth-guided lifting improves geometry (RQ2)
+
+
+================================================================================
+BIOMASS ESTIMATION (with labels)
+================================================================================
+
+1. Create your labels file:
+   dataset/biomass_labels.csv
+     plant_id,biomass_g
+     1,42.3
+
+2. Run the pipeline with biomass calibration:
+   python scripts/run_pipeline.py \
+       --preset biomass_proxy \
+       --data-folder dataset/plant_data \
+       --biomass-labels-csv dataset/biomass_labels.csv
+
+3. Results in outputs/stage_80_biomass/biomass_report.txt:
+     proxy_volume_m3:          occupied volume (always computed, no labels needed)
+     mae_g:                    Mean Absolute Error (grams)
+     rmse_g:                   Root Mean Square Error (grams)
+     mare:                     Mean Absolute Relative Error
+     biomass_head.pth:         saved calibrated head for inference
+
+
+================================================================================
+UTILITIES
+================================================================================
+
+Export a mesh from a saved sigma volume:
+  python scripts/export_mesh.py \
+      --sigma outputs/research_plant1/stage_30_volume/sigma.npy \
+      --output outputs/research_plant1/mesh_export.ply \
+      --thresh 0.3
+
+Render a single preview image from saved volumes:
+  python scripts/demo_render.py \
+      --sigma outputs/research_plant1/stage_30_volume/sigma.npy \
+      --color outputs/research_plant1/stage_30_volume/color.npy \
+      --output outputs/preview.png
+
+Render the orbit video from any saved volume pair:
+  python scripts/render_video.py \
+      --sigma  outputs/research_plant1/stage_30_volume/sigma.npy \
+      --color  outputs/research_plant1/stage_30_volume/color.npy \
+      --output outputs/orbit.mp4 \
+      --frames 120 \
+      --size   512 \
+      --device cuda
+
+Post-process any mesh for MeshLab:
+  python scripts/postprocess_mesh.py \
+      --input  outputs/research_plant1/stage_60_refine/plant_mesh.ply \
+      --output outputs/plant_meshlab_ready.ply \
+      --smooth-iters 5
+
+
+================================================================================
+COMPLETE FRESH-START SEQUENCE (copy-paste)
+================================================================================
+
+# 1. Activate environment
+.venv\Scripts\Activate.ps1                              # Windows PowerShell
+# source .venv/bin/activate                             # Linux / Mac
+
+# 2. Depth fusion mesh (fastest, best geometry, 2 minutes)
+python scripts/depth_fusion.py --data-folder dataset/plant_data --output-dir outputs/plant1
+
+# 3. Post-process the mesh
+python scripts/postprocess_mesh.py --input outputs/plant1/plant_mesh_colored.ply --output outputs/plant1/plant_mesh_final.ply
+
+# 4. Make the orbit video
+python scripts/render_video.py --sigma outputs/plant1/sigma.npy --color outputs/plant1/color.npy --output outputs/plant1/orbit.mp4 --device cuda --multi-elevation
+
+# 5. Full photometric research run (25-40 minutes)
+python scripts/run_pipeline.py --preset research --data-folder dataset/plant_data --output-root outputs/photometric_plant1
+
+# 6. All ablations (A1-A6, ~2 hours)
+python scripts/run_ablations.py --data-folder dataset/plant_data --output-root outputs/ablations
+
+# 7. View results summary
+cat outputs/ablations/ablation_summary.csv
+cat outputs/plant1_final/RESULTS_REPORT.txt
+
+
+================================================================================
+OUTPUTS QUICK REFERENCE
+================================================================================
+
+After running the above, you will have:
+
+  outputs/plant1/
+    plant_mesh_colored.ply    <- open in MeshLab (coloured, 22k+ vertices)
+    plant_mesh_final.ply      <- smoothed and cleaned version
+    plant_pointcloud.ply      <- open in MeshLab (100k+ points)
+    orbit.mp4                 <- 360-degree orbit video, 30fps
+
+  outputs/photometric_plant1/
+    stage_20_dino/            DINO per-view features
+    stage_30_volume/          sigma.npy, color.npy (raw volumes)
+    stage_40_vol_train/       checkpoints + training_stats.txt
+    stage_60_refine/          plant_mesh.ply + refinement checkpoints
+    stage_70_eval/            metrics.csv, rendered views, report.txt
+    stage_80_biomass/         biomass_report.txt, biomass_head.pth
+
+  outputs/ablations/
+    ablation_summary.csv      all A1-A6 PSNR/MSE/occupancy results
+    A1_pretrain_on/           individual run outputs
+    A1_pretrain_off/
+    ... (A2-A6)
+
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+CUDA out of memory:
+  - Use --device cpu (slower but always works)
+  - Reduce --render-size to 128 or 64
+  - Use --preset fast_gpu (fewer epochs, smaller render)
+  - For ablations: edit src/config/presets.yaml and set epochs: 4
+
+depth_fusion.py not found:
+  - The script is created by the pipeline.  If missing, run:
+    python scripts/run_pipeline.py --preset fast --data-folder dataset/plant_data
+  - The depth fusion logic is also inside scripts/run_pipeline.py automatically.
+
+mesh is empty / very few vertices:
+  - Adjust threshold: python scripts/export_mesh.py --thresh 0.15
+  - Try --sigma-percentile 20 to auto-select threshold
+
+Video is black / no content:
+  - Try different near/far: render_video.py --near 0.3 --far 2.5
+  - Check sigma.npy has non-zero values: python -c "import numpy as np; s=np.load('outputs/plant1/sigma.npy'); print(s.max())"
+
+Low PSNR (< 10 dB) is expected with only 4 views.
+  - Add more turntable angles (8-16) for better reconstruction.
+  - The depth-fusion mesh (Path A) is the primary quality deliverable.
+
+================================================================================

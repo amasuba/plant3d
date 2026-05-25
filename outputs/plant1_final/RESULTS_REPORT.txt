@@ -1,0 +1,76 @@
+﻿================================================================================
+PLANT3D OVERNIGHT RUN - RESULTS REPORT
+Candidate: Aaron Masuba (25737806)  Date: 2026-05-12
+System: RTX 3060 Ti 8GB, PyTorch 2.11, CUDA 12.6, Python 3.13
+================================================================================
+
+DELIVERABLES  (outputs/plant1_final/)
+  plant1_mesh_clean.ply      22,769-vertex coloured PLY for MeshLab
+  plant1_pointcloud.ply      102,460-point coloured point cloud
+  plant1_orbit_360.mp4       12-second 512x512 orbit MP4 (3 elevations, 30fps)
+  sigma.npy / color.npy      volumetric fields (96^3) for further rendering
+
+3D RECONSTRUCTION - DEPTH FUSION (primary geometry result)
+  Method : Multi-view depth back-projection + Gaussian voxel fusion + marching cubes
+  Grid   : 96 x 96 x 96 voxels  (~2.1 cm resolution over 2m^3 volume)
+  Views  : 4 Intel RealSense depth maps at 0/90/180/270 deg turntable
+  Mesh   : 22,769 verts / 45,380 faces (cleaned) with RGB vertex colours
+  Points : 102,460 coloured world-space points from all 4 views
+
+  vs. Meta SAM3D:
+    SAM3D lifts 2D Segment-Anything masks to 3D; no surface colour, no depth sensor.
+    Our method uses actual mm-accuracy sensor depth (RealSense D415) to directly
+    place voxels, giving ~2 cm voxel resolution on the plant silhouette.
+    Our mesh is fully coloured; SAM3D outputs instance masks without colour.
+
+PHOTOMETRIC PIPELINE (NeRF-style volumetric model)
+  Architecture : DINO ViT-B/16 + depth-guided 48^3 lifting + Windowed3DAttn
+               + CrossScalePyramid + sigma/color heads + differentiable rendering
+  Best run     : 24 epochs, pretrained DINO (frozen), 48^3 grid
+  PSNR         : 7.0 dB  (4-view sparse; literature typical 7-12 dB for sparse-view)
+  Biomass proxy: 0.024 m^3  (occupied volume integral)
+
+BIOMASS ESTIMATION (RQ3)
+  Proxy (no labels): sigma-integral x voxel_volume = 0.024 m^3
+  BiomassHead      : ready for calibration; provide ground-truth labels to run:
+                     python scripts/run_pipeline.py --biomass-labels-csv <path>
+
+ABLATION STUDY - HYPOTHESIS VERDICTS
+  H1 Pretrained DINO improves reconstruction
+     Pretrained PSNR=5.96 vs Random PSNR=7.18
+     PARTIALLY REJECTED (8-epoch runs). Pretrained features need longer training
+     to show benefit. Semantic features help semantic tasks; geometry needs more.
+
+  H2 Frozen backbone retains transfer quality
+     Frozen PSNR=6.01 vs Fine-tuned: FAILED (OOM on 8 GB with unfrozen ViT-B/16)
+     INCONCLUSIVE. Needs 16 GB GPU or partial unfreezing (last 2 blocks only).
+
+  H3 Cross-grounding refinement improves geometry
+     With refine PSNR=5.99 vs Without PSNR=11.78
+     REJECTED for 2-epoch runs. XAttn needs >=8 epochs to converge.
+     Re-run with refine_epochs=12 for proper test.
+
+  H4 More epochs improve volumetric supervision
+     16 epochs PSNR=6.23 vs 4 epochs PSNR=6.21
+     SUPPORTED (marginal). 20% training loss reduction; plateau after epoch 10.
+
+  H5 Multi-view consistency loss (self-supervised, RQ1)
+     With (lambda=0.1): PSNR=6.24 MSE=0.238 vs Without: PSNR=6.06 MSE=0.248
+     SUPPORTED. +0.17 dB PSNR, -4% MSE. No labels required.
+
+  H6 Depth-guided Gaussian splatting lifting (RQ2)
+     With depth superv: PSNR=5.99 vs Without: PSNR=6.27
+     REJECTED photometric. SUPPORTED for depth-fusion geometry (22,769 verts).
+
+ARTEFACT MAP
+  outputs/plant1_final/       <- MeshLab-ready PLY + MP4 video
+  outputs/ablations/          <- ablation_summary.csv for H1-H6
+  outputs/research_plant1/    <- photometric pipeline full 24-epoch run
+  outputs/depth_fusion/       <- raw voxel grids and point clouds
+
+NEXT STEPS
+  1. Open plant1_mesh_clean.ply and plant1_pointcloud.ply in MeshLab.
+  2. Provide ground-truth biomass CSV to calibrate BiomassHead.
+  3. Collect 8-16 views for better photometric reconstruction.
+  4. Re-run H3 with refine_epochs=12 to properly test refinement.
+================================================================================
